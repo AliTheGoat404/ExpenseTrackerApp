@@ -35,24 +35,96 @@ def create_transaction():
 @transactions_bp.route("/transactions", methods=["GET"])
 @jwt_required()
 def get_transactions():
+    # 1. Get the authenticated user's ID from the JWT
     current_user_id = int(get_jwt_identity())
-    user_transactions = (Transaction.query.filter_by(user_id=current_user_id)
-                         .order_by(Transaction.date.desc())
-                         .all()
-                         )
-    results = []
-    for t in user_transactions:
-        results.append(
-            {
-                "id": t.id,
-                "amount": t.amount,
-                "category": t.category,
-                "description": t.description,
-                "date": t.date.isoformat(),
-            }
-        )
 
-    return {"transactions": results, "total_count": len(results)}, 200
+    # 2. Start with ONLY this user's transactions
+    query = (
+        Transaction.query
+        .filter_by(user_id=current_user_id)
+        .order_by(Transaction.date.desc())
+    )
+
+    # 3. Optional category filter
+    category = request.args.get("category")
+
+    if category:
+        query = query.filter_by(category=category)
+
+    # 4. Optional start date filter
+    start_date = request.args.get("start_date")
+
+    if start_date:
+        try:
+            start_dt = datetime.strptime(
+                start_date, "%Y-%m-%d"
+            ).replace(tzinfo=timezone.utc)
+
+            query = query.filter(Transaction.date >= start_dt)
+
+        except ValueError:
+            return {
+                "error": "Invalid start_date format. Use YYYY-MM-DD"
+            }, 400
+
+    # 5. Optional end date filter
+    end_date = request.args.get("end_date")
+
+    if end_date:
+        try:
+            end_dt = datetime.strptime(
+                end_date, "%Y-%m-%d"
+            ).replace(
+                hour=23,
+                minute=59,
+                second=59,
+                tzinfo=timezone.utc
+            )
+
+            query = query.filter(Transaction.date <= end_dt)
+
+        except ValueError:
+            return {
+                "error": "Invalid end_date format. Use YYYY-MM-DD"
+            }, 400
+
+    # 6. Pagination
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
+
+    # Prevent someone requesting an enormous number of records
+    per_page = min(per_page, 100)
+
+    pagination = query.paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False
+    )
+
+    # 7. Get ONLY the transactions on this page
+    results = []
+
+    for t in pagination.items:
+        results.append({
+            "id": t.id,
+            "amount": t.amount,
+            "category": t.category,
+            "description": t.description,
+            "date": t.date.isoformat(),
+        })
+
+    # 8. Return transactions + pagination information
+    return {
+        "transactions": results,
+        "pagination": {
+            "total_records": pagination.total,
+            "current_page": pagination.page,
+            "total_pages": pagination.pages,
+            "per_page": pagination.per_page,
+            "has_next": pagination.has_next,
+            "has_prev": pagination.has_prev,
+        }
+    }, 200
 
 @transactions_bp.route("/transactions/<int:transaction_id>", methods=["PUT"])
 @jwt_required()
