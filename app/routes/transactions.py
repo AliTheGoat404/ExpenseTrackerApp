@@ -144,7 +144,11 @@ def update_transaction(transaction_id):
     if "description" in data:
         transaction.description = data["description"]
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback() # means "Okay, forget this failed database transaction and reset the session."
+        return {"error": "Database error"}, 500
 
     return {"message": "Transaction updated successfully"}, 200
 
@@ -156,6 +160,10 @@ def delete_transaction(transaction_id):
     if not transaction:
         return {"error": "Transaction not found"}, 404
     db.session.delete(transaction)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback() # means "Okay, forget this failed database transaction and reset the session."
+        return {"error": "Database error"}, 500
     return {"message": "Transaction deleted successfully"}, 200
 
