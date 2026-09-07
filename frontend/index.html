@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="auth-screen" class="auth-wrapper">
+        <div class="auth-card">
+            <div class="brand">
+                <span class="logo-icon">💳</span>
+                <h2>Expense Tracker</h2>
+            </div>
+            <div class="tabs">
+                <button class="tab-btn active" id="tab-login" onclick="switchAuthTab('login')">Login</button>
+                <button class="tab-btn" id="tab-register" onclick="switchAuthTab('register')">Register</button>
+            </div>
+            <form id="auth-form" onsubmit="handleAuth(event)">
+                <div id="auth-alert" class="alert hidden"></div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="auth-username" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="auth-password" placeholder="Enter password" required>
+                </div>
+                <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-block">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="app-screen" class="app-layout hidden">
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo-icon">💳</span>
+                <h2>Expense Tracker</h2>
+            </div>
+            <div class="user-badge">
+                <span id="user-display">User</span>
+            </div>
+            <button class="btn btn-secondary theme-toggle" onclick="toggleTheme()">
+                <span id="theme-icon">🌙</span> <span id="theme-text">Dark Mode</span>
+            </button>
+            <button class="btn btn-danger btn-block logout-btn" onclick="logout()">Logout</button>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <h1>Overview</h1>
+                <button class="btn btn-primary" onclick="openModal()">+ Add Expense</button>
+            </header>
+
+            <section class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-title">Filtered Total</span>
+                    <h2 class="metric-value" id="metric-total">$0.00</h2>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-title">Total Records</span>
+                    <h2 class="metric-value" id="metric-count">0</h2>
+                </div>
+            </section>
+
+            <section class="card filter-bar">
+                <div class="filter-inputs">
+                    <input type="text" id="filter-category" placeholder="Category (e.g. Food)" oninput="debouncedFetch()">
+                    <input type="date" id="filter-start-date" onchange="loadTransactions(1)">
+                    <input type="date" id="filter-end-date" onchange="loadTransactions(1)">
+                    <button class="btn btn-secondary" onclick="resetFilters()">Reset</button>
+                </div>
+            </section>
+
+            <section class="card table-card">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                                <th class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transaction-rows">
+                            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination-bar">
+                    <span id="pagination-info">Page 1 of 1</span>
+                    <div class="btn-group">
+                        <button id="btn-prev" class="btn btn-secondary" onclick="changePage(-1)">Previous</button>
+                        <button id="btn-next" class="btn btn-secondary" onclick="changePage(1)">Next</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modal" class="modal-backdrop hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Add Expense</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="transaction-form" onsubmit="saveTransaction(event)">
+                <input type="hidden" id="edit-id">
+                <div id="form-alert" class="alert hidden"></div>
+                <div class="form-group">
+                    <label>Amount ($)</label>
+                    <input type="number" id="tx-amount" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="tx-category" placeholder="Food, Rent, Utilities" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="tx-description" placeholder="Optional notes">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Expense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

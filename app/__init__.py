@@ -1,20 +1,26 @@
 # app/__init__.py
-from flask import Flask
-
+from flask import Flask, send_from_directory
+from flask_cors import CORS
+import os
 from app.config import Config
 from app.extensions import db, jwt, migrate
 
 
 def create_app(config_class=Config):
     # 1. Instantiate the Flask application object
-    app = Flask(__name__)
+    frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+    app = Flask(__name__, static_folder=frontend_dir, static_url_path="")
     app.config.from_object(config_class)
     #What it does: Reads all upper-case variables defined in our Config class (like SQLALCHEMY_DATABASE_URI) and injects them directly into Flask's internal app.config dictionary.
-
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     # 2. Bind the pre-created extensions to this specific app instance
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    @app.route("/")
+    def serve_frontend():
+        return send_from_directory(app.static_folder, "index.html")
 
     # 3. Import and register Blueprints locally inside the factory
     from app.routes.auth import auth_bp

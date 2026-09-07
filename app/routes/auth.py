@@ -5,21 +5,26 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.extensions import db
 from app.models import User
 
-# Create the Blueprint instance named 'auth'
 auth_bp = Blueprint("auth", __name__)
 
 
-@auth_bp.route("/register", methods=["POST"])
+@auth_bp.route("/register", methods=["POST", "OPTIONS"])
 def register():
+    if request.method == "OPTIONS":
+        return {}, 200
+
     data = request.get_json(silent=True) or {}
-    if not data.get("username") or not data.get("password"):
+    username = (data.get("username") or "").strip()
+    password = data.get("password")
+
+    if not username or not password:
         return {"error": "Username and password are required"}, 400
 
-    if User.query.filter_by(username=data.get("username")).first():
+    if User.query.filter_by(username=username).first():
         return {"error": "Username already exists"}, 409
 
-    hashed_password = generate_password_hash(data.get("password"))
-    user = User(username=data.get("username"), password=hashed_password)
+    hashed_password = generate_password_hash(password)
+    user = User(username=username, password=hashed_password)
 
     db.session.add(user)
     db.session.commit()
@@ -27,17 +32,33 @@ def register():
     return {"message": "User created successfully"}, 201
 
 
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.route("/login", methods=["POST", "OPTIONS"])
 def login():
+    if request.method == "OPTIONS":
+        return {}, 200
+
     data = request.get_json(silent=True) or {}
-    if not data.get("username") or not data.get("password"):
+    username = (data.get("username") or "").strip()
+    password = data.get("password")
+
+    if not username or not password:
         return {"error": "Username and password are required"}, 400
 
-    user = User.query.filter_by(username=data.get("username")).first()
-    if not user or not check_password_hash(user.password, data.get("password")):
+    # 1. Single indexed query
+    user = User.query.filter_by(username=username).first()
+
+    # 2. Fast check: don't attempt hashing if user doesn't exist
+    if not user or not check_password_hash(user.password, password):
         return {"error": "Invalid username or password"}, 401
 
-    # Store user.id in the JWT identity so it can be cast to int safely in transaction routes
+    # 3. Create access token and return complete user object
     access_token = create_access_token(identity=str(user.id))
 
-    return {"message": "Logged in successfully", "access_token": access_token}, 200
+    return {
+        "message": "Logged in successfully",
+        "access_token": access_token,
+        "user": {
+            "id": user.id,
+            "username": user.username
+        }
+    }, 200
